@@ -1,0 +1,5 @@
+__pycache__/
+*.db
+uploaded_invoices/
+.env
+.venv/
