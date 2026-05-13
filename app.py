@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-
-=======
 import streamlit as st
 import pandas as pd
 from database import create_tables, get_connection
@@ -90,4 +87,3 @@ elif menu == "View Invoices":
         st.info("No invoices found.")
     else:
         st.dataframe(df, use_container_width=True)
->>>>>>> ee4ac80 (Built initial invoice tracking system)

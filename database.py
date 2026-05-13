@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-
-=======
 import sqlite3
 
 DB_NAME = "invoices.db"
@@ -28,4 +25,3 @@ def create_tables():
 
     conn.commit()
     conn.close()
->>>>>>> ee4ac80 (Built initial invoice tracking system)
