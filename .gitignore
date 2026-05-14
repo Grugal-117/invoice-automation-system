@@ -3,3 +3,4 @@ __pycache__/
 uploaded_invoices/
 .env
 .venv/
+.vs/
