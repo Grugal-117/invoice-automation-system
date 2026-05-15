@@ -1,8 +1,14 @@
 import streamlit as st
 import pandas as pd
+import os
 from database import create_tables, get_connection
+from extractor import extract_invoice_data
+
 
 create_tables()
+
+UPLOAD_FOLDER = "uploaded_invoices"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 st.set_page_config(
     page_title="Invoice Automation System",
@@ -20,14 +26,58 @@ if menu == "Add Invoice":
 
     st.header("Add New Invoice")
 
-    vendor_name = st.text_input("Vendor Name")
-    invoice_number = st.text_input("Invoice Number")
-    invoice_date = st.date_input("Invoice Date")
-    due_date = st.date_input("Due Date")
+    uploaded_file = st.file_uploader(
+        "Upload Invoice File",
+        type=["pdf", "png", "jpg", "jpeg"]
+    )
+
+    extracted_data = {
+        "vendor_name": "",
+        "invoice_number": "",
+        "invoice_date": "",
+        "due_date": "",
+        "amount": 0.0
+    }
+
+    if uploaded_file is not None:
+
+        temp_path = os.path.join(
+            UPLOAD_FOLDER,
+            uploaded_file.name
+        )
+
+        with open(temp_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+
+        if uploaded_file.name.endswith(".pdf"):
+            extracted_data = extract_invoice_data(temp_path)
+
+            st.success("Invoice data extracted successfully.")
+
+    vendor_name = st.text_input(
+        "Vendor Name",
+        value=extracted_data["vendor_name"]
+    )
+
+    invoice_number = st.text_input(
+        "Invoice Number",
+        value=extracted_data["invoice_number"]
+    )
+
+    invoice_date = st.text_input(
+        "Invoice Date",
+        value=extracted_data["invoice_date"]
+    )
+
+    due_date = st.text_input(
+        "Due Date",
+        value=extracted_data["due_date"]
+    )
 
     amount = st.number_input(
         "Invoice Amount",
         min_value=0.0,
+        value=float(extracted_data["amount"]),
         format="%.2f"
     )
 
@@ -40,8 +90,29 @@ if menu == "Add Invoice":
 
     if st.button("Save Invoice"):
 
+        file_name = None
+
+        if uploaded_file is not None:
+            file_name = uploaded_file.name
+
         conn = get_connection()
         cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT id FROM invoices
+            WHERE vendor_name = ?
+            AND invoice_number = ?
+        """, (
+            vendor_name,
+            invoice_number
+        ))
+
+        duplicate = cursor.fetchone()
+
+        if duplicate:
+            st.error("Possible duplicate invoice detected. This vendor and invoice number already exist.")
+            conn.close()
+            st.stop()
 
         cursor.execute("""
             INSERT INTO invoices
@@ -52,9 +123,10 @@ if menu == "Add Invoice":
                 due_date,
                 amount,
                 status,
+                file_name,
                 notes
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             vendor_name,
             invoice_number,
@@ -62,6 +134,7 @@ if menu == "Add Invoice":
             str(due_date),
             amount,
             status,
+            file_name,
             notes
         ))
 
@@ -69,24 +142,6 @@ if menu == "Add Invoice":
         conn.close()
 
         st.success("Invoice saved successfully.")
-
-elif menu == "View Invoices":
-
-    st.header("Invoice Records")
-
-    conn = get_connection()
-
-    df = pd.read_sql_query(
-        "SELECT * FROM invoices ORDER BY created_at DESC",
-        conn
-    )
-
-    conn.close()
-
-    if df.empty:
-        st.info("No invoices found.")
-    else:
-        st.dataframe(df, use_container_width=True)
 
 elif menu == "Update Invoice Status":
 

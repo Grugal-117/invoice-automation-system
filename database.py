@@ -18,10 +18,17 @@ def create_tables():
             due_date TEXT,
             amount REAL NOT NULL,
             status TEXT DEFAULT 'Unpaid',
+            file_name TEXT,
             notes TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+
+    cursor.execute("PRAGMA table_info(invoices)")
+    columns = [column[1] for column in cursor.fetchall()]
+
+    if "file_name" not in columns:
+        cursor.execute("ALTER TABLE invoices ADD COLUMN file_name TEXT")
 
     conn.commit()
     conn.close()
