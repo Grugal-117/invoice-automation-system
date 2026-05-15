@@ -1,12 +1,24 @@
 import pdfplumber
 import re
 
+def extract_money(pattern, text):
+    match = re.search(pattern, text, re.IGNORECASE)
+    if match:
+        return float(match.group(1).replace(",", ""))
+    return 0.0
+
 def extract_invoice_data(file_path):
     extracted_data = {
         "vendor_name": "",
+        "vendor_number": "",
+        "po_number": "",
         "invoice_number": "",
         "invoice_date": "",
         "due_date": "",
+        "subtotal": 0.0,
+        "tax": 0.0,
+        "freight": 0.0,
+        "other_charges": 0.0,
         "amount": 0.0,
         "raw_text": ""
     }
@@ -21,25 +33,24 @@ def extract_invoice_data(file_path):
 
     extracted_data["raw_text"] = text
 
-    invoice_number_match = re.search(r"Invoice Number:\s*(\S+)", text)
-    invoice_date_match = re.search(r"Invoice Date:\s*([0-9\-\/]+)", text)
-    due_date_match = re.search(r"Due Date:\s*([0-9\-\/]+)", text)
-    vendor_match = re.search(r"Vendor:\s*(.+)", text)
-    total_match = re.search(r"Total Due\s*\$?([0-9,]+\.\d{2})", text)
+    patterns = {
+        "vendor_name": r"Vendor Name:?\s*(.+)",
+        "vendor_number": r"Vendor Number:?\s*(\S+)",
+        "po_number": r"PO Number:?\s*(\S+)",
+        "invoice_number": r"Invoice Number:?\s*(\S+)",
+        "invoice_date": r"Invoice Date:?\s*([0-9\-\/]+)",
+        "due_date": r"Due Date:?\s*([0-9\-\/]+)",
+    }
 
-    if invoice_number_match:
-        extracted_data["invoice_number"] = invoice_number_match.group(1)
+    for field, pattern in patterns.items():
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            extracted_data[field] = match.group(1).strip()
 
-    if invoice_date_match:
-        extracted_data["invoice_date"] = invoice_date_match.group(1)
-
-    if due_date_match:
-        extracted_data["due_date"] = due_date_match.group(1)
-
-    if vendor_match:
-        extracted_data["vendor_name"] = vendor_match.group(1).strip()
-
-    if total_match:
-        extracted_data["amount"] = float(total_match.group(1).replace(",", ""))
+    extracted_data["subtotal"] = extract_money(r"Subtotal:?\s*\$?([0-9,]+\.\d{2})", text)
+    extracted_data["tax"] = extract_money(r"Tax:?\s*\$?([0-9,]+\.\d{2})", text)
+    extracted_data["freight"] = extract_money(r"Freight:?\s*\$?([0-9,]+\.\d{2})", text)
+    extracted_data["other_charges"] = extract_money(r"Other Charges:?\s*\$?([0-9,]+\.\d{2})", text)
+    extracted_data["amount"] = extract_money(r"Total Amount:?\s*\$?([0-9,]+\.\d{2})", text)
 
     return extracted_data
